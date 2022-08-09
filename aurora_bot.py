@@ -2,10 +2,8 @@ import logging
 
 from aiogram import Bot, Dispatcher, executor, types
 
-# t.me/aurora_personal_assistant_bot
-
-API_TOKEN = ''
-USER_ID = 1
+from config import API_TOKEN
+from config import USER_ID
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
