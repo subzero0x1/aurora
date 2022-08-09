@@ -19,11 +19,15 @@ async def send_welcome(message: types.Message):
     """
     This handler will be called when user sends `/start` or `/help` command
     """
-    await message.reply("Hi!\nI'm EchoBot!\nPowered by aiogram.")
+    if message.from_user.id != 1:
+        return
+    await message.reply("Hi!\nI'm Aurora, EchoBot!")
 
 
 @dp.message_handler()
 async def aurora_bot(message: types.Message):
+    if message.from_user.id != 1:
+        return
     await message.answer(message.text)
 
 if __name__ == '__main__':
