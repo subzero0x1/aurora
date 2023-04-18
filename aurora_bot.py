@@ -20,7 +20,7 @@ async def send_welcome(message: types.Message):
     """
     if message.from_user.id != USER_ID:
         return
-    await message.reply("Hi!\nI'm Aurora, EchoBot!")
+    await message.reply("Hi!\nI'm Aurora, EchoBot and Assistant!")
 
 
 @dp.message_handler()
