@@ -14,16 +14,6 @@ bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot)
 
 
-@dp.message_handler(commands=['start', 'help'])
-async def send_welcome(message: types.Message):
-    """
-    This handler will be called when user sends `/start` or `/help` command
-    """
-    if message.from_user.id != USER_ID:
-        return
-    await message.reply("Hi!\nI'm Aurora, EchoBot and Assistant!")
-
-
 async def save_message(user_id: int, message_text: str):
     """Save a message to a text file."""
     with open(f"{user_id}.txt", "a") as f:
@@ -36,12 +26,23 @@ async def get_saved_message(user_id: int):
         lines = f.readlines()
         if lines == 0:
             return None
-        rnd = randrange(len(lines))
+        rnd = randrange(0, len(lines))
         i = 0
         for message in lines:
             if i == rnd:
                 return message
+            i += 1
     return None
+
+
+@dp.message_handler(commands=['start', 'help'])
+async def send_welcome(message: types.Message):
+    """
+    This handler will be called when user sends `/start` or `/help` command
+    """
+    if message.from_user.id != USER_ID:
+        return
+    await message.reply("Hi!\nI'm Aurora, EchoBot and Assistant!")
 
 
 @dp.message_handler(commands=['mem'])
