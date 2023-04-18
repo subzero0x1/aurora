@@ -42,7 +42,7 @@ async def send_welcome(message: types.Message):
     """
     if message.from_user.id != USER_ID:
         return
-    await message.reply("Hi!\nI'm Aurora, EchoBot and Assistant!")
+    await message.reply("Bonjour!")
 
 
 @dp.message_handler(commands=['mem'])
@@ -53,7 +53,7 @@ async def save_quote(message: types.Message):
     if message.from_user.id != USER_ID:
         return
     user_id = message.from_user.id
-    message_text = message.text
+    message_text = message.text[5:].strip()
     await save_message(user_id, message_text)
     await message.reply("I remembered, Sir!")
 
