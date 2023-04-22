@@ -1,74 +1,81 @@
+import asyncio
 import logging
-from random import randrange
+import random
 
-from aiogram import Bot, Dispatcher, executor, types
+from aiogram import Bot, Dispatcher, types
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.dispatcher import FSMContext
+from aiogram.dispatcher.filters import Text
+from aiogram.dispatcher.filters.state import State, StatesGroup
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from config import API_TOKEN
 from config import USER_ID
+
+GREETING = 'Bonjour!'
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
 # Initialize bot and dispatcher
 bot = Bot(token=API_TOKEN)
-dp = Dispatcher(bot)
+dp = Dispatcher(bot, storage=MemoryStorage())
 
 
-async def save_message(user_id: int, message_text: str):
-    """Save a message to a text file."""
-    with open(f"{user_id}.txt", "a") as f:
-        f.write(f"{message_text}\n")
-
-
-async def get_saved_message(user_id: int):
-    """Get a saved message to send back to the user."""
-    with open(f"{user_id}.txt", "r") as f:
-        lines = f.readlines()
-        if lines == 0:
-            return None
-        rnd = randrange(0, len(lines))
-        i = 0
-        for message in lines:
-            if i == rnd:
-                return message
-            i += 1
-    return None
+class SaveText(StatesGroup):
+    waiting_for_confirmation = State()
 
 
 @dp.message_handler(commands=['start', 'help'])
 async def send_welcome(message: types.Message):
-    """
-    This handler will be called when user sends `/start` or `/help` command
-    """
     if message.from_user.id != USER_ID:
         return
-    await message.reply("Bonjour!")
+    await message.reply(GREETING)
 
 
-@dp.message_handler(commands=['mem'])
-async def save_quote(message: types.Message):
-    """
-    This handler will be called when user sends `/mem` command
-    """
+# Handler for any text message
+@dp.message_handler()
+async def save_text(message: types.Message, state: FSMContext):
     if message.from_user.id != USER_ID:
         return
-    user_id = message.from_user.id
-    message_text = message.text[5:].strip()
-    await save_message(user_id, message_text)
-    await message.reply("I remembered, Sir!")
+
+    markup = InlineKeyboardMarkup(row_width=2)
+    button_save = InlineKeyboardButton("Remember", callback_data="remember")
+    button_skip = InlineKeyboardButton("Ignore", callback_data="ignore")
+    markup.add(button_save, button_skip)
+
+    async with state.proxy() as data:
+        data["text"] = message.text
+
+    await message.reply(text='', reply_markup=markup)
+    await SaveText.next()
 
 
-@dp.message_handler(commands=['get'])
+@dp.callback_query_handler(text=["remember", "ignore"], state=SaveText.waiting_for_confirmation)
+async def process_callback_save(callback_query: types.CallbackQuery, state: FSMContext):
+    if callback_query.data == "remember":
+        async with state.proxy() as data:
+            text = data["text"]
+            user_id = callback_query.from_user.id
+            with open(f"{user_id}.txt", "a", encoding="utf-8") as f:
+                f.write(f"{text}\n")
+            await bot.answer_callback_query(callback_query.id, text="Copied that, Sir!")
+    else:
+        await bot.answer_callback_query(callback_query.id, text="OK")
+    await state.finish()
+
+
+@dp.message_handler(Text(equals="Quote"))
 async def get_quote(message: types.Message):
-    """
-    This handler will be called when user sends `/get` command
-    """
     user_id = message.from_user.id
     if message.from_user.id != USER_ID:
         return
-    saved_message = await get_saved_message(user_id)
-    if saved_message:
-        await bot.send_message(user_id, saved_message)
+    quote = "No quotes"
+    with open(f"{user_id}.txt", "r") as f:
+        lines = f.readlines()
+        if len(lines) > 0:
+            quote = random.choice(lines).strip()
+    await bot.send_message(user_id, quote)
 
 
 @dp.message_handler()
@@ -78,9 +85,10 @@ async def aurora_bot(message: types.Message):
     await message.answer(message.text)
 
 
-async def on_startup(_):
-    await bot.send_message(USER_ID, 'Hi!')
-
-
 if __name__ == '__main__':
-    executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
+    await bot.send_message(USER_ID, GREETING)
+
+    dp.register_message_handler(get_quote, commands=["quote"])
+    types.ReplyKeyboardMarkup(resize_keyboard=True).add(types.KeyboardButton("Quote"))
+
+    asyncio.run(dp.start_polling())
