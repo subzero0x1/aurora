@@ -1,7 +1,9 @@
 import asyncio
 import logging
+import os
 import random
 
+import aiocron as aiocron
 from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
@@ -33,6 +35,21 @@ async def send_welcome(message: types.Message):
     await message.reply(GREETING)
 
 
+@dp.message_handler(Text(equals="Quote"))
+async def send_quote(message: types.Message):
+    user_id = message.from_user.id
+    if message.from_user.id != USER_ID:
+        return
+    quote = "No quotes"
+    file_name = f"{user_id}.txt"
+    if os.path.isfile(file_name):
+        with open(f"{user_id}.txt", "r") as f:
+            lines = f.readlines()
+            if len(lines) > 0:
+                quote = random.choice(lines).strip()
+    await bot.send_message(user_id, quote)
+
+
 # Handler for any text message
 @dp.message_handler()
 async def save_text(message: types.Message, state: FSMContext):
@@ -47,7 +64,7 @@ async def save_text(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data["text"] = message.text
 
-    await message.reply(text='', reply_markup=markup)
+    await message.reply(text=message.text, reply_markup=markup)
     await SaveText.next()
 
 
@@ -65,19 +82,6 @@ async def process_callback_save(callback_query: types.CallbackQuery, state: FSMC
     await state.finish()
 
 
-@dp.message_handler(Text(equals="Quote"))
-async def get_quote(message: types.Message):
-    user_id = message.from_user.id
-    if message.from_user.id != USER_ID:
-        return
-    quote = "No quotes"
-    with open(f"{user_id}.txt", "r") as f:
-        lines = f.readlines()
-        if len(lines) > 0:
-            quote = random.choice(lines).strip()
-    await bot.send_message(user_id, quote)
-
-
 @dp.message_handler()
 async def aurora_bot(message: types.Message):
     if message.from_user.id != USER_ID:
@@ -85,10 +89,16 @@ async def aurora_bot(message: types.Message):
     await message.answer(message.text)
 
 
+aiocron.crontab('0 13 * * *', func=send_quote)
+
+
+async def on_startup():
+    dp.register_message_handler(send_quote, commands=["quote"])
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add(types.KeyboardButton("Quote"))
+    await bot.send_message(USER_ID, GREETING, reply_markup=markup)
+
+
 if __name__ == '__main__':
-    await bot.send_message(USER_ID, GREETING)
-
-    dp.register_message_handler(get_quote, commands=["quote"])
-    types.ReplyKeyboardMarkup(resize_keyboard=True).add(types.KeyboardButton("Quote"))
-
+    asyncio.run(on_startup())
     asyncio.run(dp.start_polling())
