@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import logging
 import os
 import random
@@ -33,7 +34,7 @@ async def send_welcome(message: types.Message):
 
 
 @dp.message_handler(Text(equals="Quote"))
-async def send_quote(message: types.Message):
+async def get_quote(message: types.Message):
     user_id = message.from_user.id
     if message.from_user.id != USER_ID:
         return
@@ -45,6 +46,19 @@ async def send_quote(message: types.Message):
             if len(lines) > 0:
                 quote = random.choice(lines).strip()
     await bot.send_message(user_id, quote)
+
+
+@dp.message_handler(Text(equals="Expense"))
+async def get_amount_on_day(message: types.Message):
+    user_id = message.from_user.id
+    if message.from_user.id != USER_ID:
+        return
+    expense = [20000, 15000, 10000, 5000, 75000, 70000, 65000,
+               60000, 55000, 50000, 45000, 40000, 35000, 30000,
+               25000, 20000, 15000, 10000, 5000, 80000, 75000,
+               70000, 65000, 60000, 55000, 50000, 45000, 40000,
+               35000, 30000, 25000][datetime.datetime.now().day - 1]
+    await bot.send_message(user_id, '{:,}'.format(expense).replace(',', ' '))
 
 
 # Handler for any text message
@@ -92,9 +106,13 @@ async def aurora_bot(message: types.Message):
 
 
 async def on_startup():
-    dp.register_message_handler(send_quote, commands=["quote"])
+    # dp.register_message_handler(get_quote, commands=["quote"])
+    # dp.register_message_handler(get_amount_on_day, commands=["expense"])
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add(types.KeyboardButton("Quote"))
+    markup.row(
+        types.KeyboardButton("Expense"),
+        types.KeyboardButton("Quote")
+    )
     await bot.send_message(USER_ID, 'Bonjour!', reply_markup=markup)
 
 
