@@ -3,7 +3,7 @@ import logging
 import os
 import random
 
-import aiocron as aiocron
+# import aiocron as aiocron
 from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
@@ -89,7 +89,7 @@ async def aurora_bot(message: types.Message):
     await message.answer(message.text)
 
 
-aiocron.crontab('0 13 * * *', func=send_quote)
+# aiocron.crontab('0 13 * * *', func=send_quote)
 
 
 async def on_startup():
