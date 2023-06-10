@@ -26,6 +26,17 @@ class SaveText(StatesGroup):
     waiting_for_confirmation = State()
 
 
+def get_random_quote(user_id: int):
+    quote = "No quotes"
+    file_name = f"{user_id}.txt"
+    if os.path.isfile(file_name):
+        with open(f"{user_id}.txt", "r") as f:
+            lines = f.readlines()
+            if len(lines) > 0:
+                quote = random.choice(lines).strip()
+    return quote
+
+
 @dp.message_handler(commands=['start', 'help'])
 async def send_welcome(message: types.Message):
     if message.from_user.id != USER_ID:
@@ -38,14 +49,7 @@ async def get_quote(message: types.Message):
     user_id = message.from_user.id
     if message.from_user.id != USER_ID:
         return
-    quote = "No quotes"
-    file_name = f"{user_id}.txt"
-    if os.path.isfile(file_name):
-        with open(f"{user_id}.txt", "r") as f:
-            lines = f.readlines()
-            if len(lines) > 0:
-                quote = random.choice(lines).strip()
-    await bot.send_message(user_id, quote)
+    await bot.send_message(user_id, get_random_quote(user_id))
 
 
 @dp.message_handler(Text(equals="Expense"))
@@ -105,9 +109,16 @@ async def aurora_bot(message: types.Message):
     await message.answer(message.text)
 
 
+async def send_random_quote():
+    while True:
+        files = [f for f in os.listdir() if os.path.isfile(f) and f.endswith('.txt')]
+        for file in files:
+            user_id = int(file.split(".")[0])
+            await bot.send_message(user_id, get_random_quote(user_id))
+        await asyncio.sleep(random.randint(20 * 60 * 60, 28 * 60 * 60))
+
+
 async def on_startup():
-    # dp.register_message_handler(get_quote, commands=["quote"])
-    # dp.register_message_handler(get_amount_on_day, commands=["expense"])
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row(
         types.KeyboardButton("Expense"),
@@ -116,6 +127,11 @@ async def on_startup():
     await bot.send_message(USER_ID, 'Bonjour!', reply_markup=markup)
 
 
+async def main():
+    await on_startup()
+    asyncio.create_task(send_random_quote())
+    await dp.start_polling()
+
+
 if __name__ == '__main__':
-    asyncio.run(on_startup())
-    asyncio.run(dp.start_polling())
+    asyncio.run(main())
