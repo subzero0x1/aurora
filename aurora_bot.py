@@ -27,10 +27,10 @@ class SaveText(StatesGroup):
 
 
 def get_random_quote(user_id: int):
-    quote = "No quotes"
-    file_name = f"{user_id}.txt"
+    quote = 'No quotes'
+    file_name = f'{user_id}.txt'
     if os.path.isfile(file_name):
-        with open(f"{user_id}.txt", "r") as f:
+        with open(f'{user_id}.txt', 'r') as f:
             lines = f.readlines()
             if len(lines) > 0:
                 quote = random.choice(lines).strip()
@@ -44,7 +44,7 @@ async def send_welcome(message: types.Message):
     await on_startup()
 
 
-@dp.message_handler(Text(equals="Quote"))
+@dp.message_handler(Text(equals='Quote'))
 async def get_quote(message: types.Message):
     user_id = message.from_user.id
     if message.from_user.id != USER_ID:
@@ -52,7 +52,7 @@ async def get_quote(message: types.Message):
     await bot.send_message(user_id, get_random_quote(user_id))
 
 
-@dp.message_handler(Text(equals="Expense"))
+@dp.message_handler(Text(equals='Expense'))
 async def get_amount_on_day(message: types.Message):
     user_id = message.from_user.id
     if message.from_user.id != USER_ID:
@@ -72,32 +72,32 @@ async def save_text(message: types.Message, state: FSMContext):
         return
 
     markup = InlineKeyboardMarkup(row_width=2)
-    button_save = InlineKeyboardButton("Remember", callback_data="remember")
-    button_skip = InlineKeyboardButton("Ignore", callback_data="ignore")
+    button_save = InlineKeyboardButton('Remember', callback_data='remember')
+    button_skip = InlineKeyboardButton('Ignore', callback_data='ignore')
     markup.add(button_save, button_skip)
 
     async with state.proxy() as data:
-        data["message"] = message
+        data['message'] = message
 
     await message.reply(text='Your command?', reply_markup=markup)
     await SaveText.next()
 
 
-@dp.callback_query_handler(text=["remember", "ignore"], state=SaveText.waiting_for_confirmation)
+@dp.callback_query_handler(text=['remember', 'ignore'], state=SaveText.waiting_for_confirmation)
 async def process_callback_save(callback_query: types.CallbackQuery, state: FSMContext):
     user_id = callback_query.from_user.id
     if user_id != USER_ID:
         return
     async with state.proxy() as data:
-        message = data["message"]
+        message = data['message']
         message_text = message.text
         await message.delete()
-    if callback_query.data == "remember":
-        with open(f"{user_id}.txt", "a", encoding="utf-8") as f:
-            f.write(f"{message_text}\n")
-        await bot.answer_callback_query(callback_query.id, text="Copied that, Sir!")
+    if callback_query.data == 'remember':
+        with open(f'{user_id}.txt', 'a', encoding='utf-8') as f:
+            f.write(f'{message_text}\n')
+        await bot.answer_callback_query(callback_query.id, text='Copied that, Sir!')
     else:
-        await bot.answer_callback_query(callback_query.id, text="OK")
+        await bot.answer_callback_query(callback_query.id, text='OK')
     await callback_query.message.delete()
     await state.finish()
 
@@ -113,7 +113,7 @@ async def send_random_quote():
     while True:
         files = [f for f in os.listdir() if os.path.isfile(f) and f.endswith('.txt')]
         for file in files:
-            user_id = int(file.split(".")[0])
+            user_id = int(file.split('.')[0])
             await bot.send_message(user_id, get_random_quote(user_id))
         await asyncio.sleep(random.randint(20 * 60 * 60, 28 * 60 * 60))
 
@@ -121,8 +121,8 @@ async def send_random_quote():
 async def on_startup():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row(
-        types.KeyboardButton("Expense"),
-        types.KeyboardButton("Quote")
+        types.KeyboardButton('Expense'),
+        types.KeyboardButton('Quote')
     )
     await bot.send_message(USER_ID, 'Bonjour!', reply_markup=markup)
 
