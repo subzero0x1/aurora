@@ -1,8 +1,10 @@
 import asyncio
 import datetime
+import html
 import logging
 import os
 import random
+from pathlib import Path
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
@@ -10,14 +12,17 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from picamera import PiCamera
 
 from config import API_TOKEN
+from config import PICTURE_FILE
 from config import USER_ID
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+if not API_TOKEN or not USER_ID or not PICTURE_FILE:
+    raise ValueError("API_TOKEN, USER_ID and PICTURE_FILE must be set")
 
-# Initialize bot and dispatcher
+logging.basicConfig(level=os.getenv('LOG_LEVEL', 'INFO'))
+
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
 
@@ -29,11 +34,15 @@ class SaveText(StatesGroup):
 def get_random_quote(user_id: int):
     quote = 'No quotes'
     file_name = f'{user_id}.txt'
-    if os.path.isfile(file_name):
-        with open(f'{user_id}.txt', 'r') as f:
-            lines = f.readlines()
-            if len(lines) > 0:
-                quote = random.choice(lines).strip()
+    try:
+        if os.path.isfile(file_name):
+            with open(file_name, 'r') as f:
+                lines = f.readlines()
+                if len(lines) > 0:
+                    quote = random.choice(lines)
+    except Exception as e:
+        logging.error(f"Error opening file {file_name}: {e}")
+        quote = 'Error getting quote'
     return quote
 
 
@@ -49,7 +58,27 @@ async def get_quote(message: types.Message):
     user_id = message.from_user.id
     if message.from_user.id != USER_ID:
         return
-    await bot.send_message(user_id, get_random_quote(user_id))
+    await bot.send_message(user_id, get_random_quote(user_id)) @ dp.message_handler(Text(equals='Quote'))
+
+
+@dp.message_handler(Text(equals='Photo'))
+async def get_photo(message: types.Message):
+    user_id = message.from_user.id
+    if message.from_user.id != USER_ID:
+        return
+    try:
+        file = Path(PICTURE_FILE)
+        if file.exists():
+            os.remove(PICTURE_FILE)
+        cam = PiCamera()
+        cam.rotation = 270
+        cam.capture(PICTURE_FILE)
+        cam.close()
+        with open(PICTURE_FILE, 'rb') as photo:
+            await bot.send_photo(user_id, photo)
+    except Exception as e:
+        logging.error(f"Error getting photo: {e}")
+        await bot.send_message(user_id, f'Error getting photo: {e}')
 
 
 @dp.message_handler(Text(equals='Expense'))
@@ -90,7 +119,7 @@ async def process_callback_save(callback_query: types.CallbackQuery, state: FSMC
         return
     async with state.proxy() as data:
         message = data['message']
-        message_text = message.text
+        message_text = html.escape(message.text.replace('\n', ' '))
         await message.delete()
     if callback_query.data == 'remember':
         with open(f'{user_id}.txt', 'a', encoding='utf-8') as f:
@@ -102,27 +131,21 @@ async def process_callback_save(callback_query: types.CallbackQuery, state: FSMC
     await state.finish()
 
 
-@dp.message_handler()
-async def aurora_bot(message: types.Message):
-    if message.from_user.id != USER_ID:
-        return
-    await message.answer(message.text)
-
-
 async def send_random_quote():
     while True:
         files = [f for f in os.listdir() if os.path.isfile(f) and f.endswith('.txt')]
         for file in files:
             user_id = int(file.split('.')[0])
             await bot.send_message(user_id, get_random_quote(user_id))
-        await asyncio.sleep(random.randint(20 * 60 * 60, 28 * 60 * 60))
+        await asyncio.sleep(random.randint(16 * 60 * 60, 32 * 60 * 60))
 
 
 async def on_startup():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row(
         types.KeyboardButton('Expense'),
-        types.KeyboardButton('Quote')
+        types.KeyboardButton('Quote'),
+        types.KeyboardButton('Photo')
     )
     await bot.send_message(USER_ID, 'Bonjour!', reply_markup=markup)
 
